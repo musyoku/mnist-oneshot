@@ -43,12 +43,11 @@ def main():
 	# init weightnorm layers
 	if config.use_weightnorm:
 		print "initializing weight normalization layers ..."
-		images_l, label_onehot_l, label_id_l = dataset.sample_labeled_data(training_images_l, training_labels_l, batchsize_l, config.ndim_x, config.ndim_y)
-		images_u = dataset.sample_unlabeled_data(training_images_u, batchsize_u, config.ndim_x)
+		images_l, label_onehot_l, label_id_l = dataset.sample_labeled_data(training_images_l, training_labels_l, batchsize_l, config.ndim_x, config.ndim_y, normalize_zero_to_one=True)
+		images_u = dataset.sample_unlabeled_data(training_images_u, batchsize_u, config.ndim_x, normalize_zero_to_one=True)
 		sdgm.compute_lower_bound(images_l, label_onehot_l, images_u)
 
 	# training
-	temperature = 1
 	progress = Progress()
 	for epoch in xrange(1, max_epoch):
 		progress.start_epoch(epoch, max_epoch)
@@ -57,15 +56,16 @@ def main():
 
 		for t in xrange(num_trains_per_epoch):
 			# sample from data distribution
-			images_l, label_onehot_l, label_ids_l = dataset.sample_labeled_data(training_images_l, training_labels_l, batchsize_l, config.ndim_x, config.ndim_y)
-			images_u = dataset.sample_unlabeled_data(training_images_u, 0, config.ndim_x)
+			images_l, label_onehot_l, label_ids_l = dataset.sample_labeled_data(training_images_l, training_labels_l, batchsize_l, config.ndim_x, config.ndim_y, normalize_zero_to_one=True)
+			images_u = dataset.sample_unlabeled_data(training_images_u, 0, config.ndim_x, normalize_zero_to_one=True)
 
-			# lower bound loss using gumbel-softmax
-			lower_bound, lb_labeled, lb_unlabeled = sdgm.compute_lower_bound_gumbel(images_l, label_onehot_l, images_u, temperature)
+			# lower bound loss 
+			lower_bound, lb_labeled, lb_unlabeled = sdgm.compute_lower_bound(images_l, label_onehot_l, images_u)
 			loss_lower_bound = -lower_bound
 
 			# classification loss
-			unnormalized_y_distribution = sdgm.encode_x_y_distribution(images_l, softmax=False)
+			a_l = sdgm.encode_x_a(images_l, False)
+			unnormalized_y_distribution = sdgm.encode_ax_y_distribution(a_l, images_l, softmax=False)
 			loss_classifier = alpha * F.softmax_cross_entropy(unnormalized_y_distribution, sdgm.to_variable(label_ids_l))
 
 			# backprop
@@ -78,7 +78,7 @@ def main():
 		sdgm.save(args.model_dir)
 
 		# validation
-		images_l, _, label_ids_l = dataset.sample_labeled_data(validation_images, validation_labels, num_validation_data, config.ndim_x, config.ndim_y)
+		images_l, _, label_ids_l = dataset.sample_labeled_data(validation_images, validation_labels, num_validation_data, config.ndim_x, config.ndim_y, normalize_zero_to_one=True)
 		images_l_segments = np.split(images_l, num_validation_data // 500)
 		label_ids_l_segments = np.split(label_ids_l, num_validation_data // 500)
 		sum_accuracy = 0
@@ -92,11 +92,7 @@ def main():
 			"lb_l": sum_lower_bound_l / num_trains_per_epoch,
 			"loss_spv": sum_loss_classifier / num_trains_per_epoch,
 			"accuracy": validation_accuracy,
-			"tmp": temperature,
 		})
-
-		# anneal the temperature
-		temperature = max(0.5, temperature * 0.999)
 
 		# write accuracy to csv
 		csv_results.append([epoch, validation_accuracy, progress.get_total_time()])

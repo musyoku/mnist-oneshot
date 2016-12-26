@@ -33,7 +33,9 @@ def main():
 
 	# create semi-supervised split
 	num_validation_data = 10000
-	num_labeled_data = 100
+	num_labeled_data = args.num_labeled
+	if batchsize_l > num_labeled_data:
+		batchsize_l = num_labeled_data
 	num_types_of_label = 10
 	training_images_l, training_labels_l, training_images_u, validation_images, validation_labels = dataset.create_semisupervised(images, labels, num_validation_data, num_labeled_data, num_types_of_label, seed=args.seed)
 	print training_labels_l
@@ -41,8 +43,8 @@ def main():
 	# init weightnorm layers
 	if config.use_weightnorm:
 		print "initializing weight normalization layers ..."
-		images_l, label_onehot_l, label_id_l = dataset.sample_labeled_data(training_images_l, training_labels_l, batchsize_l, config.ndim_x, config.ndim_y)
-		images_u = dataset.sample_unlabeled_data(training_images_u, batchsize_u, config.ndim_x)
+		images_l, label_onehot_l, label_id_l = dataset.sample_labeled_data(training_images_l, training_labels_l, batchsize_l, config.ndim_x, config.ndim_y, normalize_zero_to_one=True)
+		images_u = dataset.sample_unlabeled_data(training_images_u, batchsize_u, config.ndim_x, normalize_zero_to_one=True)
 		sdgm.compute_lower_bound(images_l, label_onehot_l, images_u)
 
 	# training
@@ -55,8 +57,8 @@ def main():
 
 		for t in xrange(num_trains_per_epoch):
 			# sample from data distribution
-			images_l, label_onehot_l, label_ids_l = dataset.sample_labeled_data(training_images_l, training_labels_l, batchsize_l, config.ndim_x, config.ndim_y)
-			images_u = dataset.sample_unlabeled_data(training_images_u, batchsize_u, config.ndim_x)
+			images_l, label_onehot_l, label_ids_l = dataset.sample_labeled_data(training_images_l, training_labels_l, batchsize_l, config.ndim_x, config.ndim_y, normalize_zero_to_one=True)
+			images_u = dataset.sample_unlabeled_data(training_images_u, batchsize_u, config.ndim_x, normalize_zero_to_one=True)
 
 			# lower bound loss 
 			lower_bound, lb_labeled, lb_unlabeled = sdgm.compute_lower_bound(images_l, label_onehot_l, images_u)
@@ -78,7 +80,7 @@ def main():
 		sdgm.save(args.model_dir)
 
 		# validation
-		images_l, _, label_ids_l = dataset.sample_labeled_data(validation_images, validation_labels, num_validation_data, config.ndim_x, config.ndim_y)
+		images_l, _, label_ids_l = dataset.sample_labeled_data(validation_images, validation_labels, num_validation_data, config.ndim_x, config.ndim_y, normalize_zero_to_one=True)
 		images_l_segments = np.split(images_l, num_validation_data // 500)
 		label_ids_l_segments = np.split(label_ids_l, num_validation_data // 500)
 		sum_accuracy = 0
@@ -89,8 +91,8 @@ def main():
 		validation_accuracy = sum_accuracy / len(images_l_segments)
 		
 		progress.show(num_trains_per_epoch, num_trains_per_epoch, {
-			"lb_u": sum_lower_bound_l / num_trains_per_epoch,
-			"lb_l": sum_lower_bound_u / num_trains_per_epoch,
+			"lb_u": sum_lower_bound_u / num_trains_per_epoch,
+			"lb_l": sum_lower_bound_l / num_trains_per_epoch,
 			"loss_spv": sum_loss_classifier / num_trains_per_epoch,
 			"accuracy": validation_accuracy,
 		})
