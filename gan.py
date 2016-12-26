@@ -213,3 +213,12 @@ class GAN():
 			pass
 		self.generator.save(dir + "/generator.hdf5")
 		self.discriminator.save(dir + "/discriminator.hdf5")
+
+	def save_discriminator(self, dir=None):
+		if dir is None:
+			raise Exception()
+		try:
+			os.mkdir(dir)
+		except:
+			pass
+		self.discriminator.save(dir + "/discriminator.hdf5")

@@ -40,7 +40,7 @@ else:
 	config.use_weightnorm = False
 	config.nonlinearity = "softplus"
 	config.optimizer = "Adam"
-	config.learning_rate = 0.0002
+	config.learning_rate = 0.001
 	config.momentum = 0.5
 	config.gradient_clipping = 10
 	config.weight_decay = 0
@@ -97,7 +97,7 @@ else:
 	config.weight_initializer = "GlorotNormal"
 	config.nonlinearity = "relu"
 	config.optimizer = "Adam"
-	config.learning_rate = 0.0002
+	config.learning_rate = 0.001
 	config.momentum = 0.5
 	config.gradient_clipping = 10
 	config.weight_decay = 0

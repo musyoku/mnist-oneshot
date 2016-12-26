@@ -53,13 +53,12 @@ def main():
 	for epoch in xrange(1, max_epoch):
 		progress.start_epoch(epoch, max_epoch)
 		sum_lower_bound_l = 0
-		sum_lower_bound_u = 0
 		sum_loss_classifier = 0
 
 		for t in xrange(num_trains_per_epoch):
 			# sample from data distribution
 			images_l, label_onehot_l, label_ids_l = dataset.sample_labeled_data(training_images_l, training_labels_l, batchsize_l, config.ndim_x, config.ndim_y)
-			images_u = dataset.sample_unlabeled_data(training_images_u, batchsize_u, config.ndim_x)
+			images_u = dataset.sample_unlabeled_data(training_images_u, 0, config.ndim_x)
 
 			# lower bound loss using gumbel-softmax
 			lower_bound, lb_labeled, lb_unlabeled = sdgm.compute_lower_bound_gumbel(images_l, label_onehot_l, images_u, temperature)
@@ -73,7 +72,6 @@ def main():
 			sdgm.backprop(loss_classifier + loss_lower_bound)
 
 			sum_lower_bound_l += float(lb_labeled.data)
-			sum_lower_bound_u += float(lb_unlabeled.data)
 			sum_loss_classifier += float(loss_classifier.data)
 			progress.show(t, num_trains_per_epoch, {})
 
@@ -91,8 +89,7 @@ def main():
 		validation_accuracy = sum_accuracy / len(images_l_segments)
 		
 		progress.show(num_trains_per_epoch, num_trains_per_epoch, {
-			"lb_u": sum_lower_bound_l / num_trains_per_epoch,
-			"lb_l": sum_lower_bound_u / num_trains_per_epoch,
+			"lb_l": sum_lower_bound_l / num_trains_per_epoch,
 			"loss_spv": sum_loss_classifier / num_trains_per_epoch,
 			"accuracy": validation_accuracy,
 			"tmp": temperature,
